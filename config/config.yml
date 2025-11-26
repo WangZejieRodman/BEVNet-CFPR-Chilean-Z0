@@ -1,0 +1,108 @@
+# config/config.yml (修改后的完整版本)
+# Chilean Underground Mine Dataset 配置文件
+
+data_root:
+  data_root_folder: "/home/wzj/pan2/Chilean_Underground_Mine_Dataset_Many_Times/chilean_NoRot_NoScale"
+
+extractor_config:
+  # 所有序列：100-209
+  seqs: ["100", "101", "102", "103", "104", "105", "106", "107", "108", "109",
+         "110", "111", "112", "113", "114", "115", "116", "117", "118", "119",
+         "120", "121", "122", "123", "124", "125", "126", "127", "128", "129",
+         "130", "131", "132", "133", "134", "135", "136", "137", "138", "139",
+         "140", "141", "142", "143", "144", "145", "146", "147", "148", "149",
+         "150", "151", "152", "153", "154", "155", "156", "157", "158", "159",
+         "160", "161", "162", "163", "164", "165", "166", "167", "168", "169",
+         "170", "171", "172", "173", "174", "175", "176", "177", "178", "179",
+         "180", "181", "182", "183", "184", "185", "186", "187", "188", "189",
+         "190", "191", "192", "193", "194", "195", "196", "197", "198", "199",
+         "200", "201", "202", "203", "204", "205", "206", "207", "208", "209"]
+  pretrained_backbone_model: "/home/wzj/pan1/BEVNet-CFPR/outputs/stage1_chilean/backbone.ckpt"
+  batch_num: 16
+
+# Stage1: 训练Backbone + OverlapHead (BEVNet风格)
+stage1_training_config:
+  # 训练集：100-159
+  training_seqs: ["100", "101", "102", "103", "104", "105", "106", "107", "108", "109",
+                  "110", "111", "112", "113", "114", "115", "116", "117", "118", "119",
+                  "120", "121", "122", "123", "124", "125", "126", "127", "128", "129",
+                  "130", "131", "132", "133", "134", "135", "136", "137", "138", "139",
+                  "140", "141", "142", "143", "144", "145", "146", "147", "148", "149",
+                  "150", "151", "152", "153", "154", "155", "156", "157", "158", "159"]
+  out_folder: "/home/wzj/pan1/BEVNet-CFPR/outputs/stage1_chilean"
+
+  # 正样本距离范围：0-7m之间的帧对视为正样本
+  pos_threshold_min: 0
+  pos_threshold_max: 7
+
+  # 负样本距离阈值：30m外的帧对用于构建pairs字典
+  neg_threshold: 30
+
+  # 点云体素化范围和分辨率（Chilean数据集范围：X[-10,10], Y[-10,10], Z[-4,8]）
+  coords_range_xyz: [-10., -10, -4, 10, 10, 8]  # x,y,z的最小最大值
+  div_n: [256, 256, 32]  # 体素网格分辨率
+
+  # 训练超参数
+  batch_size: 1
+  num_iter: 50000  # 总迭代次数
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-6
+  lr_decay_gamma: 0.99  # 每1000次迭代学习率衰减
+  lr_decay_step: 1000
+
+  # 数据增强
+  random_rotation: true
+  random_occlusion: true
+
+  # 保存设置
+  save_interval: 1000  # 每1000次迭代保存一次
+  num_workers: 8
+
+# Stage2: 训练AttnVLADHead (CFPR风格，使用triplet loss)
+stage2_training_config:
+  # 训练集：100-159
+  training_seqs: ["100", "101", "102", "103", "104", "105", "106", "107", "108", "109",
+                  "110", "111", "112", "113", "114", "115", "116", "117", "118", "119",
+                  "120", "121", "122", "123", "124", "125", "126", "127", "128", "129",
+                  "130", "131", "132", "133", "134", "135", "136", "137", "138", "139",
+                  "140", "141", "142", "143", "144", "145", "146", "147", "148", "149",
+                  "150", "151", "152", "153", "154", "155", "156", "157", "158", "159"]
+  out_folder: "/home/wzj/pan1/BEVNet-CFPR/outputs/stage2_chilean"
+  model_name: "AttnVLADHead"
+
+  # 使用Stage1训练好的backbone
+  pretrained_backbone_model: "/home/wzj/pan1/BEVNet-CFPR/outputs/stage1_chilean/backbone_final.ckpt"
+  pretrained_vlad_model: ""  # 为空表示从头训练
+
+  # 正负样本距离阈值（场景级）
+  pos_threshold: 7    # 7m内为正样本
+  neg_threshold: 30   # 30m外为负样本
+
+  batch_size: 2
+  epoch: 20
+  learning_rate: 1.0e-5
+  weight_decay: 1.0e-6
+  num_workers: 8
+
+# 评估配置
+evaluate_config:
+  # 测试数据集划分
+  # Database（地图）：160-189（30个序列）
+  database_seqs: ["177", "175", "202", "184", "177", "170", "200", "202", "188", "191", "176", "205", "200", "208", "184", "191", "161"]
+
+  # Query（查询）：190-209（20个序列）
+  query_seqs: ["156", "157", "130", "118", "132", "156", "157", "103", "158", "115", "116", "101", "118"]
+
+  # 模型路径
+  model_name: "AttnVLADHead"
+  test_vlad_model: "/home/wzj/pan1/BEVNet-CFPR/outputs/stage2_chilean/attnvlad_final.ckpt"
+  test_overlap_model: "/home/wzj/pan1/BEVNet-CFPR/outputs/stage1_chilean/overlap_final.ckpt"
+
+  # Ground Truth定义：基于GPS距离
+  pos_threshold: 15.0  # GPS距离小于10m视为正确匹配（米）
+
+  # Recall计算的K值
+  top_k: [1, 5, 10, 25]
+
+  # 特征提取参数
+  batch_num: 16  # batch size用于生成描述符时的批处理
